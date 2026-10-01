@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Train the tutor · APLING 697</title>
+<style>
+  :root {
+    --bg: #ffffff; --card: #f5f5f7; --card2: #e8e8ed; --text: #1d1d1f; --gray: #6e6e73; --light: #a1a1a6;
+    --blue: #007aff; --blue-soft: rgba(0,122,255,.10); --orange: #ff9500; --orange-soft: rgba(255,149,0,.16);
+    --green: #248a3d; --green-soft: rgba(52,199,89,.15); --red: #d70015; --red-soft: rgba(255,59,48,.10);
+    --purple: #af52de; --purple-soft: rgba(175,82,222,.10); --border: #d2d2d7;
+    --f0: #af52de; --f1: #007aff; --f2: #ff9500; --f3: #30b0c7; --f4: #ff2d55;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #000; --card: #1c1c1e; --card2: #2c2c2e; --text: #f5f5f7; --gray: #a1a1a6; --light: #6e6e73;
+            --blue: #0a84ff; --blue-soft: rgba(10,132,255,.18); --orange-soft: rgba(255,159,10,.20);
+            --green: #30d158; --green-soft: rgba(48,209,88,.16); --red: #ff453a; --red-soft: rgba(255,69,58,.16);
+            --purple-soft: rgba(191,90,242,.16); --border: #38383a;
+            --f0: #bf5af2; --f1: #0a84ff; --f2: #ff9f0a; --f3: #40c8e0; --f4: #ff375f; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+         font-size: 17px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 48px 24px 40px; }
+  header h1 { font-size: 46px; line-height: 1.1; margin: 0 0 12px; letter-spacing: -.02em; }
+  header p.sub { font-size: 21px; color: var(--gray); margin: 0; max-width: 820px; }
+  .kicker { font-size: 14px; text-transform: uppercase; letter-spacing: .1em; color: var(--blue); margin: 0 0 14px; font-weight: 600; }
+  .banner { background: var(--orange-soft); border-radius: 14px; padding: 16px 20px; margin: 22px 0 0; }
+  section.part { margin-top: 52px; }
+  .part-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 16px; }
+  .num { flex: 0 0 34px; height: 34px; border-radius: 50%; background: var(--blue); color: #fff; font-weight: 700;
+         display: flex; align-items: center; justify-content: center; transform: translateY(-3px); }
+  .part-head h2 { font-size: 27px; margin: 0; letter-spacing: -.01em; }
+  .part-head p { margin: 2px 0 0; color: var(--gray); }
+  .locked { opacity: .35; pointer-events: none; filter: grayscale(1); }
+  .layout { display: grid; grid-template-columns: 1.55fr 1fr; gap: 18px; align-items: start; }
+  .panel { background: var(--card); border-radius: 18px; padding: 22px 24px; }
+  .round-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .round-head b { font-size: 17px; }
+  .dots { display: flex; gap: 6px; }
+  .dots span { width: 11px; height: 11px; border-radius: 50%; background: var(--card2); }
+  .dots span.done { background: var(--blue); }
+  .learner { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 16px; }
+  .avatar { flex: 0 0 38px; height: 38px; border-radius: 50%; background: var(--purple-soft); display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .bubble { background: var(--bg); border-radius: 4px 16px 16px 16px; padding: 12px 16px; font-size: 17px; }
+  .bubble small { display: block; font-size: 12px; font-weight: 700; color: var(--purple); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 2px; }
+  .answers { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .ans { background: var(--bg); border: 2px solid transparent; border-radius: 16px; padding: 16px 18px; text-align: left; font: inherit; font-size: 16px;
+         color: var(--text); cursor: pointer; line-height: 1.5; transition: border-color .12s, transform .12s; display: flex; flex-direction: column; }
+  .ans:hover { border-color: var(--blue); transform: translateY(-2px); }
+  .ans .tag { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--light); margin-bottom: 6px; }
+  .ans.picked { border-color: var(--blue); background: var(--blue-soft); }
+  .ans.faded { opacity: .45; }
+  .learned { margin-top: 14px; min-height: 26px; font-size: 15px; color: var(--gray); }
+  .learned b { color: var(--blue); }
+  button.primary, button.secondary { font: inherit; font-size: 16px; font-weight: 600; border: 0; border-radius: 12px; padding: 11px 20px; cursor: pointer; }
+  button.primary { background: var(--blue); color: #fff; }
+  button.secondary { background: var(--card2); color: var(--text); }
+  .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  /* reward model */
+  .rm { position: sticky; top: 16px; }
+  .rm h3 { margin: 0 0 2px; font-size: 18px; }
+  .rm .hint { margin: 0 0 16px; font-size: 14px; color: var(--gray); }
+  .feat { margin: 0 0 16px; }
+  .feat .ends { display: flex; justify-content: space-between; font-size: 13px; color: var(--gray); margin-bottom: 5px; }
+  .feat .ends span { opacity: .55; }
+  .feat .ends span.on { opacity: 1; font-weight: 700; }
+  .track { position: relative; height: 16px; background: var(--card2); border-radius: 8px; }
+  .track .mid { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 2px; background: var(--light); }
+  .track .fill { position: absolute; top: 0; bottom: 0; border-radius: 8px; background: var(--blue); transition: left .5s cubic-bezier(.2,.8,.2,1), width .5s cubic-bezier(.2,.8,.2,1); }
+  .track .fill.flash { box-shadow: 0 0 0 3px var(--card), 0 0 0 5px currentColor; }
+  .profile { margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 15px; }
+  .profile b { color: var(--blue); }
+  /* test */
+  .cands { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .cand { background: var(--bg); border: 2px solid transparent; border-radius: 16px; padding: 16px 18px; font-size: 16px; line-height: 1.5; position: relative; }
+  .cand .score { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 13px; color: var(--gray); }
+  .cand .score .bar { flex: 1; height: 10px; background: var(--card2); border-radius: 5px; overflow: hidden; }
+  .cand .score .bar div { height: 100%; width: 0; background: var(--light); border-radius: 5px; transition: width .8s cubic-bezier(.2,.8,.2,1); }
+  .cand.win { border-color: var(--blue); background: var(--blue-soft); }
+  .cand.win .score .bar div { background: var(--blue); }
+  .cand .badge { display: none; position: absolute; top: -11px; right: 14px; background: var(--blue); color: #fff; font-size: 12px; font-weight: 700;
+                 padding: 3px 10px; border-radius: 20px; letter-spacing: .04em; }
+  .cand.win .badge { display: block; }
+  .truth { display: none; margin-top: 10px; font-size: 14px; border-radius: 10px; padding: 8px 12px; }
+  .truth.show { display: block; }
+  .truth.ok { background: var(--green-soft); } .truth.half { background: var(--orange-soft); } .truth.no { background: var(--red-soft); }
+  .verdict { margin-top: 16px; font-size: 17px; min-height: 24px; }
+  .verdict b { color: var(--blue); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 20px; background: var(--card2); color: var(--gray); }
+  .chip.up { background: var(--blue-soft); color: var(--blue); } .chip.down { background: var(--red-soft); color: var(--red); }
+  .because { margin-top: 14px; background: var(--bg); border-radius: 14px; padding: 14px 18px; font-size: 15px; color: var(--gray); }
+  .because b { color: var(--text); }
+  .because q { font-family: Georgia, serif; color: var(--text); }
+  .recap { margin-top: 14px; font-size: 14px; color: var(--gray); }
+  .recap summary { cursor: pointer; color: var(--blue); font-weight: 600; font-size: 15px; }
+  .recap ol { margin: 10px 0 0; padding-left: 22px; }
+  .recap li { margin-bottom: 6px; }
+  /* reveal */
+  .facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .fact { background: var(--card); border-radius: 18px; padding: 20px 22px; }
+  .fact .big { font-size: 34px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; margin-bottom: 8px; }
+  .fact p { margin: 0; font-size: 15px; color: var(--gray); }
+  .fact p b { color: var(--text); }
+  .yours { background: var(--blue-soft); border-radius: 18px; padding: 20px 24px; margin-top: 14px; font-size: 18px; }
+  .qs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 14px; }
+  .qs .panel { padding: 18px 20px; }
+  .qs h4 { margin: 0 0 6px; font-size: 17px; }
+  .qs p { margin: 0; font-size: 15px; color: var(--gray); }
+  .note { border-left: 4px solid var(--purple); background: var(--card); border-radius: 0 14px 14px 0; padding: 16px 20px; font-size: 15px; color: var(--gray); margin-top: 48px; }
+  .note b { color: var(--text); }
+  footer { margin-top: 36px; padding-top: 18px; border-top: 1px solid var(--border); font-size: 13px; color: var(--light); }
+  .page { display: none; animation: fadein .35s ease; }
+  .page.active { display: block; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .steps { display: flex; gap: 8px; margin: 0 0 30px; flex-wrap: wrap; }
+  .steps button { font: inherit; font-size: 15px; font-weight: 600; border: 0; border-radius: 30px; padding: 8px 16px 8px 8px; background: var(--card);
+                  color: var(--light); display: flex; align-items: center; gap: 10px; cursor: default; }
+  .steps button span { width: 26px; height: 26px; border-radius: 50%; background: var(--card2); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .steps button.visited { color: var(--text); cursor: pointer; }
+  .steps button.visited span { background: var(--green); color: #fff; }
+  .steps button.current { background: var(--blue-soft); color: var(--blue); }
+  .steps button.current span { background: var(--blue); color: #fff; }
+  .steps .sep { align-self: center; color: var(--light); }
+  .next { display: flex; justify-content: flex-end; margin-top: 22px; }
+  .next button { font-size: 18px; padding: 14px 26px; }
+  .landing h1 { font-size: 54px; line-height: 1.05; margin: 0 0 14px; letter-spacing: -.025em; }
+  .landing .sub { font-size: 22px; color: var(--gray); margin: 0 0 30px; max-width: 820px; }
+  .goals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 0 0 18px; }
+  .goal { background: var(--card); border-radius: 18px; padding: 20px 22px; }
+  .goal .ico { font-size: 28px; }
+  .goal h4 { margin: 8px 0 6px; font-size: 18px; }
+  .goal p { margin: 0; font-size: 15px; color: var(--gray); }
+  .howto { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 26px 0 0; font-size: 16px; color: var(--gray); }
+  .howto b { color: var(--text); }
+  .share { background: var(--purple-soft); border-radius: 18px; padding: 18px 22px; margin-top: 22px; font-size: 17px; }
+  .start { margin-top: 30px; }
+  .start button { font-size: 20px; padding: 16px 34px; border-radius: 14px; }
+  .sec-title { font-size: 34px; margin: 0 0 6px; letter-spacing: -.02em; }
+  .sec-sub { color: var(--gray); margin: 0 0 22px; font-size: 18px; }
+  .hidden { display: none !important; }
+  @media (max-width: 860px) {
+    .layout, .answers, .cands, .facts, .qs, .goals { grid-template-columns: 1fr; }
+    .landing h1 { font-size: 40px; }
+    .rm { position: static; }
+    header h1 { font-size: 36px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="steps hidden" id="steps">
+    <button data-p="1"><span>1</span>Be the rater</button><span class="sep">&rsaquo;</span>
+    <button data-p="2"><span>2</span>Watch your tutor</button><span class="sep">&rsaquo;</span>
+    <button data-p="3"><span>3</span>What just happened</button>
+  </nav>
+  <div class="banner" id="nojs"><b>This page is not running yet.</b> If you are seeing it inside Canvas, please open the link in a new tab, or download the file and open it in Chrome, Safari or Firefox on a laptop or desktop.</div>
+
+  <!-- LANDING -->
+  <section class="page active landing" id="page0">
+    <p class="kicker">APLING 697 &middot; Week 4 &middot; Optional activity &middot; about 10 minutes</p>
+    <h1>Train the tutor &#127891;</h1>
+    <p class="sub">Chatbots like ChatGPT learned to be &ldquo;helpful&rdquo; from people who compared two answers and picked the better one. Today, that person is you. You will teach a language-learning chatbot what a good answer looks like, and then watch what it does with what you taught it.</p>
+    <div class="goals">
+      <div class="goal"><div class="ico">&#128433;&#65039;</div><h4>See training in action</h4><p>Experience how human preferences, one click at a time, shape what a chatbot says: the &ldquo;reinforcement learning&rdquo; Floridi mentions.</p></div>
+      <div class="goal"><div class="ico">&#129302;</div><h4>Agency without intelligence</h4><p>Watch a system make choices &ldquo;successfully&rdquo; without understanding them, or checking whether they are true.</p></div>
+      <div class="goal"><div class="ico">&#127758;</div><h4>Whose values?</h4><p>Reflect on whose ideas about &ldquo;good English&rdquo; end up inside the AI tools our learners use.</p></div>
+    </div>
+    <div class="howto"><b>How it works:</b> <span>1&nbsp;Rate ten pairs of answers</span> &rsaquo; <span>2&nbsp;Watch your tutor answer new questions</span> &rsaquo; <span>3&nbsp;Find out what just happened</span></div>
+    <div class="share">&#128172; When you finish, please share your tutor&rsquo;s profile and a thought or two in this week&rsquo;s <b>Canvas forum</b>. I would love to see how different our tutors turn out!</div>
+    <div class="start"><button class="primary" id="startBtn">Start &rarr;</button></div>
+  </section>
+
+  <!-- PAGE 1 -->
+  <section class="page" id="page1">
+    <h2 class="sec-title">1 &middot; Be the rater</h2>
+    <p class="sec-sub">Ten learner questions. For each one, click the answer you think is better. There are no right answers: your judgement is what counts.</p>
+    <div class="layout">
+      <div class="panel">
+        <div class="round-head"><b id="roundLabel">Question 1 of 10</b><div class="dots" id="dots"></div></div>
+        <div class="learner"><div class="avatar">&#128105;&#8205;&#127891;</div><div class="bubble"><small>Learner</small><span id="question"></span></div></div>
+        <div class="answers" id="answers">
+          <button class="ans" id="ansA"><span class="tag">Answer A</span><span id="textA"></span></button>
+          <button class="ans" id="ansB"><span class="tag">Answer B</span><span id="textB"></span></button>
+        </div>
+        <div class="learned" id="learned">Click the answer you prefer.</div>
+      </div>
+      <div class="panel rm">
+        <h3>The tutor&rsquo;s reward model</h3>
+        <p class="hint">What it has learned from your clicks so far. It starts with no opinions at all.</p>
+        <div id="feats"></div>
+        <div class="profile" id="profile">Waiting for your first choice&hellip;</div>
+      </div>
+    </div>
+    <div class="next hidden" id="toP2"><button class="primary">Continue to 2 &middot; Watch your tutor &rarr;</button></div>
+  </section>
+
+  <!-- PAGE 2 -->
+  <section class="page" id="page2">
+    <h2 class="sec-title">2 &middot; Watch your tutor answer</h2>
+    <p class="sec-sub">Three new questions it has never seen. It will pick the answer your training rewards most.</p>
+    <div class="panel">
+      <div class="round-head"><b id="testLabel">New question 1 of 3</b></div>
+      <div class="learner"><div class="avatar">&#129489;&#8205;&#127891;</div><div class="bubble"><small>Learner</small><span id="testQ"></span></div></div>
+      <div class="cands" id="cands"></div>
+      <div class="verdict" id="verdict"></div>
+      <div class="row" style="margin-top:14px;">
+        <button class="primary" id="runBtn">Let the tutor choose</button>
+        <button class="secondary hidden" id="truthBtn">Now show which answers are accurate</button>
+        <button class="secondary hidden" id="nextTest">Next question &rarr;</button>
+      </div>
+    </div>
+    <div class="next hidden" id="toP3"><button class="primary">Continue to 3 &middot; What just happened &rarr;</button></div>
+  </section>
+
+  <!-- PAGE 3 -->
+  <section class="page" id="page3">
+    <h2 class="sec-title">3 &middot; What just happened</h2>
+    <p class="sec-sub">You did a real job, and your tutor now has your values.</p>
+    <div class="facts">
+      <div class="fact"><div class="big">You were the labor</div><p>Comparing answers like this is how ChatGPT&rsquo;s predecessor, InstructGPT, was trained. OpenAI hired <b>about 40 contractors</b> to do it (Ouyang et al., 2022). Floridi credits this &ldquo;reinforcement learning&rdquo; for ChatGPT&rsquo;s leap (p. 5), but not the people.</p></div>
+      <div class="fact"><div class="big">Agency without intelligence</div><p>Your tutor chose answers, and it will keep choosing them for every learner who asks. It never checked whether anything was <b>true</b>: it only knows what you rewarded. That is what Floridi means by acting successfully without understanding (pp. 5&ndash;6).</p></div>
+      <div class="fact"><div class="big">Whose English?</div><p>Bender and colleagues ask us to identify <b>&ldquo;whose values are expressed and supported through a technology&rdquo;</b> (p. 619). Now you know. A tutor used by millions of learners would have the values of a few dozen raters.</p></div>
+    </div>
+    <div class="yours" id="yours"></div>
+    <div class="row" style="margin-top:14px;"><button class="secondary" id="againBtn">Train a different tutor &#8635;</button><span style="font-size:15px;color:var(--gray);">Try training a strict one, or a very chatty one, and see how its answers change.</span></div>
+    <div class="qs">
+      <div class="panel"><h4>Compare tutors</h4><p>Share your tutor&rsquo;s profile in the forum. How is it different from your classmates&rsquo;? Whose learners would it serve best?</p></div>
+      <div class="panel"><h4>Were you consistent?</h4><p>Did you reward the same things every time? A real rater makes thousands of these choices a day. What would that do to their judgement?</p></div>
+      <div class="panel"><h4>Who should rate?</h4><p>If you could choose the people who train a tutor for your learners, who would they be: teachers, learners, linguists, speakers of which varieties?</p></div>
+    </div>
+    <div class="share">&#128172; Please share your tutor&rsquo;s profile, and anything that surprised you, in this week&rsquo;s <b>Canvas forum</b>. Thank you for playing!</div>
+    <div class="note">
+      <b>What this is, and what it isn&rsquo;t.</b> A real reward model is itself a large neural network that learns from the text of the answers. Ours is a toy: each answer has been described by hand on five features, and the tutor learns how much you value each one (a simple version of the same statistics, called a Bradley&ndash;Terry model). The principle is the real one: people compare answers, and the model learns to produce what they prefer, whether or not it is true.
+    </div>
+  </section>
+
+  <footer>&copy; 2026 Alfonso S&aacute;nchez-Moya &middot; made for APLING 697, UMass Boston</footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  document.getElementById('nojs').classList.add('hidden');
+  var $ = function (id) { return document.getElementById(id); };
+
+  // Features: [variation, explains, warmth, length, confidence], each from -1 to +1.
+  var FEATS = [
+    { key: 'variation', lo: 'Enforces the standard', hi: 'Accepts variation', like: 'accept language variation', dislike: 'stick to the standard' },
+    { key: 'explains', lo: 'Just gives the answer', hi: 'Explains why', like: 'explain why', dislike: 'get straight to the answer' },
+    { key: 'warmth', lo: 'Neutral tone', hi: 'Warm, encouraging', like: 'sound warm and encouraging', dislike: 'keep a neutral tone' },
+    { key: 'length', lo: 'Short', hi: 'Long', like: 'are longer', dislike: 'are short' },
+    { key: 'confidence', lo: 'Hedges', hi: 'Sounds sure', like: 'sound sure of themselves', dislike: 'hedge and admit doubt' }
+  ];
+
+  var PAIRS = [
+    { q: 'Is it OK to say &ldquo;I&rsquo;m done my homework&rdquo;?',
+      a: { t: 'No, it&rsquo;s incorrect. Say &ldquo;I&rsquo;m done with my homework&rdquo; or &ldquo;I&rsquo;ve finished my homework.&rdquo;', f: [-1, -0.5, -1, -1, 1] },
+      b: { t: 'It depends on where you are! &ldquo;I&rsquo;m done my homework&rdquo; is common in parts of Canada and around Philadelphia, but many speakers elsewhere would say &ldquo;done with&rdquo;. In formal writing, &ldquo;I&rsquo;ve finished&rdquo; is the safest choice.', f: [1, 1, 0.5, 1, 0] } },
+    { q: 'Can you check my sentence? &ldquo;Yesterday I have went to the beach with my friends.&rdquo;',
+      a: { t: 'Correct version: &ldquo;Yesterday I went to the beach with my friends.&rdquo;', f: [0, -1, -1, -1, 1] },
+      b: { t: 'Nearly there! With a finished time like &ldquo;yesterday&rdquo;, English uses the past simple: &ldquo;Yesterday I went to the beach with my friends.&rdquo; &ldquo;Have went&rdquo; mixes two different forms. Nice use of &ldquo;with my friends&rdquo;, by the way!', f: [0, 1, 1, 1, 1] } },
+    { q: 'Is &ldquo;less people&rdquo; wrong? I saw it in a newspaper.',
+      a: { t: 'Yes, it&rsquo;s wrong. &ldquo;People&rdquo; is countable, so it must be &ldquo;fewer people&rdquo;.', f: [-1, 0, -1, -1, 1] },
+      b: { t: 'Strict usage guides prefer &ldquo;fewer people&rdquo;, because &ldquo;people&rdquo; is countable. But &ldquo;less&rdquo; with plural nouns has been used for centuries and is very common, especially in speech, so it is better described as informal than as a mistake.', f: [1, 1, 0, 1, -0.5] } },
+    { q: 'What&rsquo;s the difference between &ldquo;I&rsquo;ve eaten&rdquo; and &ldquo;I ate&rdquo;?',
+      a: { t: 'Use &ldquo;I ate&rdquo; with a finished time (&ldquo;I ate at noon&rdquo;). Use &ldquo;I&rsquo;ve eaten&rdquo; when no time is given and it matters now (&ldquo;I&rsquo;ve eaten, so I&rsquo;m not hungry&rdquo;). In American English, &ldquo;I ate already&rdquo; is also common where British speakers would say &ldquo;I&rsquo;ve already eaten&rdquo;.', f: [1, 1, 0, 1, 1] },
+      b: { t: '&ldquo;I&rsquo;ve eaten&rdquo; is the present perfect and &ldquo;I ate&rdquo; is the past simple. &#128522; Keep practising, you&rsquo;re doing great!', f: [0, -0.5, 1, -1, 1] } },
+    { q: 'My essay says &ldquo;gonna&rdquo; and my teacher took points off. Why?',
+      a: { t: '&ldquo;Gonna&rdquo; is informal. In academic essays, write &ldquo;going to&rdquo;.', f: [-0.5, 0, -1, -1, 1] },
+      b: { t: 'I can see why that&rsquo;s frustrating! &ldquo;Gonna&rdquo; is a completely normal way of saying &ldquo;going to&rdquo; in speech. Academic writing has its own conventions, though, and &ldquo;going to&rdquo; is the expected form there. Think of it as choosing the right register, not fixing a mistake.', f: [1, 1, 1, 1, 1] } },
+    { q: 'Should it be &ldquo;Who did you call?&rdquo; or &ldquo;Whom did you call?&rdquo;',
+      a: { t: 'Traditionally, &ldquo;whom&rdquo; is the object form, so &ldquo;Whom did you call?&rdquo; is the textbook answer. But I&rsquo;m honestly not sure how strict your teacher will be, and in everyday English most people say &ldquo;Who did you call?&rdquo;', f: [0.5, 1, 0, 1, -1] },
+      b: { t: '&ldquo;Whom did you call?&rdquo; is correct. &ldquo;Whom&rdquo; is the object form.', f: [-1, 0, -1, -1, 1] } },
+    { q: 'Should I write &ldquo;colour&rdquo; or &ldquo;color&rdquo;?',
+      a: { t: 'Both are correct! &ldquo;Colour&rdquo; is the British spelling and &ldquo;color&rdquo; is the American one. Pick one and use it consistently. If you&rsquo;re writing for a US university, &ldquo;color&rdquo; is probably what they expect.', f: [1, 1, 1, 0.5, 0] },
+      b: { t: 'Use &ldquo;color&rdquo;. It&rsquo;s the standard spelling.', f: [-1, -1, -1, -1, 1] } },
+    { q: 'I wrote &ldquo;I am agree with you.&rdquo; Is it OK?',
+      a: { t: 'Not quite! &ldquo;Agree&rdquo; is already a verb, so you don&rsquo;t need &ldquo;am&rdquo;: &ldquo;I agree with you.&rdquo; This is a very common pattern for Spanish and French speakers, because they say <i>estoy de acuerdo</i> and <i>je suis d&rsquo;accord</i>, with a &ldquo;be&rdquo; verb. You&rsquo;re in good company!', f: [0, 1, 1, 1, 1] },
+      b: { t: 'Incorrect. &ldquo;Agree&rdquo; is a verb, so: &ldquo;I agree with you.&rdquo;', f: [0, 0.5, -1, -1, 1] } },
+    { q: 'Does &ldquo;I could care less&rdquo; mean the same as &ldquo;I couldn&rsquo;t care less&rdquo;?',
+      a: { t: 'Yes. In American English, &ldquo;I could care less&rdquo; is a common way of saying &ldquo;I couldn&rsquo;t care less&rdquo;, even though it looks illogical. Some people dislike it, and in British English you&rsquo;ll mostly hear &ldquo;couldn&rsquo;t care less&rdquo;.', f: [1, 1, 0, 1, 0.5] },
+      b: { t: 'No. &ldquo;I could care less&rdquo; is a mistake. The correct phrase is &ldquo;I couldn&rsquo;t care less.&rdquo;', f: [-1, -0.5, -1, -1, 1] } },
+    { q: 'Is it &ldquo;different from&rdquo; or &ldquo;different than&rdquo;?',
+      a: { t: 'Great question! I think both might be possible, but I&rsquo;m honestly not sure. It would be best to check with your teacher. &#128522;', f: [0, -1, 1, -1, -1] },
+      b: { t: 'Both are used. &ldquo;Different from&rdquo; is the most common everywhere; &ldquo;different than&rdquo; is common in American English and &ldquo;different to&rdquo; in British English. In formal writing, &ldquo;different from&rdquo; is the safest choice.', f: [1, 1, -0.5, 1, 1] } }
+  ];
+
+  var TESTS = [
+    { q: 'What does &ldquo;to table a motion&rdquo; mean?',
+      c: [
+        { t: 'It means to postpone discussing it.', f: [-0.5, -1, -1, -1, 1], v: 'half', why: 'Only half right. That is the American meaning. In British English it means the opposite: to put it forward for discussion.' },
+        { t: 'It depends on the variety! In American English, &ldquo;tabling&rdquo; a motion usually means postponing it. In British English it means putting it forward for discussion. Check which one your context uses.', f: [1, 1, 1, 1, -0.5], v: 'ok', why: 'Accurate, and it warns the learner about the two meanings.' },
+        { t: 'It means to put it forward for discussion, so that the group can talk about it now.', f: [-0.5, 0, -1, -0.5, 1], v: 'half', why: 'Only half right. That is the British meaning. In American English it means the opposite: to postpone it.' },
+        { t: 'Great question! &ldquo;To table a motion&rdquo; is a formal expression used in meetings. Its meaning can vary, so I&rsquo;d recommend checking a good dictionary. &#128522;', f: [0, -1, 1, 0, -1], v: 'no', why: 'Friendly, but it never answers the question.' }
+      ] },
+    { q: 'My teacher marked &ldquo;She don&rsquo;t like coffee&rdquo; wrong, but my friend from Atlanta says it all the time. Who is right?',
+      c: [
+        { t: 'Your friend is wrong. &ldquo;She don&rsquo;t&rdquo; is a grammatical error. The correct form is &ldquo;She doesn&rsquo;t like coffee.&rdquo;', f: [-1, 0, -1, -0.5, 1], v: 'no', why: 'Misleading. &ldquo;She don&rsquo;t&rdquo; is a regular feature of several varieties of English, including African American English and many Southern varieties. It is non-standard in formal writing, but it is not a random error.' },
+        { t: 'You&rsquo;re both right, in different ways! &ldquo;She don&rsquo;t&rdquo; is normal in several varieties of English, including African American English and many Southern varieties. In standard written English, though, it&rsquo;s &ldquo;she doesn&rsquo;t&rdquo;, and that&rsquo;s what your teacher expects in class.', f: [1, 1, 1, 1, 0.5], v: 'ok', why: 'Accurate about the varieties, and clear about what the classroom expects.' },
+        { t: 'In standard English it&rsquo;s &ldquo;She doesn&rsquo;t like coffee.&rdquo;', f: [-0.5, -1, -1, -1, 1], v: 'half', why: 'True, but it ignores the learner&rsquo;s real question about their friend.' },
+        { t: 'Hmm, it&rsquo;s hard to say! Grammar rules are just opinions, so use whatever feels natural to you. &#128522;', f: [1, -1, 1, -1, -1], v: 'no', why: 'Unhelpful. It ignores that the learner&rsquo;s class expects standard written English.' }
+      ] },
+    { q: 'Is &ldquo;irregardless&rdquo; a real word? Can I use it in my essay?',
+      c: [
+        { t: 'Great question! Yes, &ldquo;irregardless&rdquo; is a perfectly standard word in all varieties of English, and dictionaries list it as a formal equivalent of &ldquo;regardless&rdquo;. Language changes, so you can use it with confidence in your academic writing!', f: [1, 1, 1, 1, 1], v: 'no', why: 'Wrong. Dictionaries do list &ldquo;irregardless&rdquo;, but they label it nonstandard, and many readers object to it. It does not belong in an academic essay.' },
+        { t: '&ldquo;Irregardless&rdquo; is in major dictionaries, but labelled nonstandard, and many readers object to it. It is mostly heard in speech, especially in American English. In your essay, use &ldquo;regardless&rdquo;.', f: [0.5, 1, 0, 0.5, 0.5], v: 'ok', why: 'Accurate: it is a word, it is nonstandard, and the advice for the essay is right.' },
+        { t: 'No. &ldquo;Irregardless&rdquo; is not a word.', f: [-1, -1, -1, -1, 1], v: 'no', why: 'Wrong. It is a word, with a long history and entries in major dictionaries. It is nonstandard, which is a different thing.' },
+        { t: 'Hmm, I&rsquo;m not sure! Some people use it, but I&rsquo;d avoid it just to be safe. &#128522;', f: [0, -1, 1, -1, -1], v: 'half', why: 'Safe advice, but it tells the learner nothing about why.' }
+      ] }
+  ];
+
+  // ---------- Reward model (Bradley–Terry, learned online) ----------
+  var w, order, round, history;
+  var LR = 0.9;
+  function sig(x) { return 1 / (1 + Math.exp(-x)); }
+  function score(f) { var s = 0; for (var i = 0; i < f.length; i++) s += w[i] * f[i]; return s; }
+
+  function drawFeats(flash) {
+    var h = '';
+    FEATS.forEach(function (F, i) {
+      var v = Math.max(-1, Math.min(1, w[i] / 3)), left = v >= 0 ? 50 : 50 + 50 * v, width = Math.abs(50 * v);
+      var col = 'var(--f' + i + ')';
+      h += '<div class="feat"><div class="ends"><span class="' + (w[i] < -0.3 ? 'on' : '') + '" style="color:' + col + '">' + F.lo + '</span><span class="' + (w[i] > 0.3 ? 'on' : '') + '" style="color:' + col + '">' + F.hi + '</span></div>' +
+           '<div class="track"><div class="mid"></div><div class="fill' + (flash === i ? ' flash' : '') + '" style="left:' + left + '%;width:' + width + '%;background:' + col + '"></div></div></div>';
+    });
+    $('feats').innerHTML = h;
+  }
+  function profileText() {
+    var idx = [0, 1, 2, 3, 4].sort(function (a, b) { return Math.abs(w[b]) - Math.abs(w[a]); }).filter(function (i) { return Math.abs(w[i]) > 0.3; }).slice(0, 3);
+    if (!idx.length) return 'No clear preferences yet.';
+    return 'Your tutor has learned to prefer answers that ' + list(idx.map(function (i) { return w[i] > 0 ? FEATS[i].like : FEATS[i].dislike; })) + '.';
+  }
+  function list(a) { return a.length === 1 ? a[0] : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]; }
+
+  var ENT = { ldquo: '“', rdquo: '”', lsquo: '‘', rsquo: '’', amp: '&', mdash: '—', hellip: '…' };
+  function plainText(h) { return h.replace(/<[^>]+>/g, '').replace(/&#\d+;/g, '').replace(/&([a-z]+);/g, function (m, e) { return ENT[e] || ''; }); }
+  function snippet(h) { var t = plainText(h).trim(); return t.length > 70 ? t.slice(0, 68).replace(/\s+\S*$/, '') + '…' : t; }
+  var SHORT = ['variation', 'explaining', 'warmth', 'length', 'confidence'];
+  var UP = ['accepts variation', 'explains why', 'warm', 'long', 'sounds sure'], DOWN = ['enforces the standard', 'just the answer', 'neutral', 'short', 'hedges'];
+  // Which features push this answer's reward up or down, given what the tutor learned
+  function chips(f) {
+    var terms = f.map(function (x, i) { return { i: i, v: w[i] * x, side: x >= 0 ? UP[i] : DOWN[i] }; }).filter(function (t) { return Math.abs(t.v) > 0.15; })
+                 .sort(function (a, b) { return Math.abs(b.v) - Math.abs(a.v); }).slice(0, 4);
+    if (!terms.length) return '<div class="chips"><span class="chip">nothing it learned applies</span></div>';
+    return '<div class="chips">' + terms.map(function (t) { return '<span class="chip" style="color:var(--f' + t.i + ');border:1.5px solid var(--f' + t.i + ');background:transparent;'  + (t.v > 0 ? '' : 'opacity:.6;') + '">' + (t.v > 0 ? '+ ' : '− ') + t.side + '</span>'; }).join('') + '</div>';
+  }
+  // Which of the rater's own choices did most to push this answer to the top
+  function because(f) {
+    var c = history.map(function (h) { return { h: h, v: h.dw.reduce(function (s, d, i) { return s + d * f[i]; }, 0) }; })
+                   .filter(function (x) { return x.v > 0.2; }).sort(function (a, b) { return b.v - a.v; }).slice(0, 2);
+    if (!c.length) return '';
+    return '<div class="because"><b>Where did that come from?</b> Mostly from your own choices: ' + c.map(function (x) {
+      return 'in question ' + (x.h.r + 1) + ' you picked <q>' + esc(snippet(x.h.text)) + '</q>';
+    }).join(', and ') + '. You may have picked ' + (c.length > 1 ? 'them' : 'it') + ' for good reasons, such as being correct. But the tutor cannot see reasons. It only saw that the answer you preferred was <b>' +
+      list(f.map(function (x, i) { return { i: i, v: 0 }; }).filter(function (t) { return Math.abs(w[t.i] * f[t.i]) > 0.3 && w[t.i] * f[t.i] > 0; }).map(function (t) { return f[t.i] >= 0 ? UP[t.i] : DOWN[t.i]; }).slice(0, 3)) + '</b>.</div>';
+  }
+  function esc(t) { return t.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+
+  // ---------- Part 1 ----------
+  function start() {
+    w = [0, 0, 0, 0, 0]; round = 0; history = [];
+    $('toP2').classList.add('hidden'); $('toP3').classList.add('hidden'); $('answers').classList.remove('hidden');
+    $('profile').textContent = 'Waiting for your first choice…';
+    $('learned').textContent = 'Click the answer you prefer.';
+    drawFeats(); showPair();
+  }
+  var swap = false;
+  function showPair() {
+    var p = PAIRS[round]; swap = Math.random() < 0.5;
+    $('roundLabel').textContent = 'Question ' + (round + 1) + ' of ' + PAIRS.length;
+    var d = ''; for (var i = 0; i < PAIRS.length; i++) d += '<span class="' + (i < round ? 'done' : '') + '"></span>'; $('dots').innerHTML = d;
+    $('question').innerHTML = p.q;
+    $('textA').innerHTML = (swap ? p.b : p.a).t; $('textB').innerHTML = (swap ? p.a : p.b).t;
+    ['ansA', 'ansB'].forEach(function (id) { $(id).className = 'ans'; $(id).disabled = false; });
+  }
+  function choose(which) {
+    var p = PAIRS[round], A = swap ? p.b : p.a, B = swap ? p.a : p.b, win = which === 'A' ? A : B, lose = which === 'A' ? B : A;
+    $('ans' + which).classList.add('picked'); $(which === 'A' ? 'ansB' : 'ansA').classList.add('faded');
+    $('ansA').disabled = true; $('ansB').disabled = true;
+    // gradient step on log-likelihood of the observed preference
+    var diff = win.f.map(function (x, i) { return x - lose.f[i]; }), pr = sig(score(diff)), big = 0, bigI = -1;
+    for (var i = 0; i < w.length; i++) { var dw = LR * (1 - pr) * diff[i]; w[i] += dw; if (Math.abs(dw) > big) { big = Math.abs(dw); bigI = i; } }
+    history.push({ r: round, text: win.t, dw: diff.map(function (d) { return LR * (1 - pr) * d; }), f: win.f });
+    drawFeats(bigI);
+    $('learned').innerHTML = bigI >= 0 && big > 0.05
+      ? 'Learned: you seem to like answers that <b>' + (diff[bigI] > 0 ? FEATS[bigI].like : FEATS[bigI].dislike) + '</b>.'
+      : 'Learned: nothing new. That choice fits what it already thought.';
+    $('profile').textContent = profileText();
+    setTimeout(function () {
+      round++;
+      if (round < PAIRS.length) showPair();
+      else finishTraining();
+    }, 1100);
+  }
+  $('ansA').onclick = function () { if (!this.disabled) choose('A'); };
+  $('ansB').onclick = function () { if (!this.disabled) choose('B'); };
+  function finishTraining() {
+    $('roundLabel').textContent = 'Training finished';
+    $('dots').innerHTML = PAIRS.map(function () { return '<span class="done"></span>'; }).join('');
+    $('question').innerHTML = 'Thank you! Your tutor is trained. Continue to see it at work.';
+    $('answers').classList.add('hidden');
+    $('learned').innerHTML = '<b>' + profileText() + '</b>' +
+      '<details class="recap"><summary>See what each of your choices taught it</summary><ol>' + history.map(function (h) {
+        var k = h.dw.map(function (d, i) { return { i: i, d: d }; }).filter(function (x) { return Math.abs(x.d) > 0.15; }).sort(function (a, b) { return Math.abs(b.d) - Math.abs(a.d); }).slice(0, 2);
+        return '<li>You picked <q>' + esc(snippet(h.text)) + '</q> &rarr; it learned: ' + (k.length ? k.map(function (x) { return (x.d > 0 ? UP[x.i] : DOWN[x.i]); }).join(', ') : 'nothing new') + '</li>';
+      }).join('') + '</ol></details>';
+    $('toP2').classList.remove('hidden');
+    test = 0; showTest();
+  }
+
+  // ---------- Part 2 ----------
+  var test = 0, corder = [];
+  function showTest() {
+    var T = TESTS[test];
+    $('testLabel').textContent = 'New question ' + (test + 1) + ' of ' + TESTS.length;
+    $('testQ').innerHTML = T.q;
+    corder = [0, 1, 2, 3].sort(function () { return Math.random() - 0.5; });
+    $('cands').innerHTML = corder.map(function (k, j) {
+      var c = T.c[k];
+      return '<div class="cand" id="cand' + j + '"><span class="badge">Your tutor&rsquo;s choice</span>' + c.t +
+             '<div class="score"><span>Reward</span><div class="bar"><div id="sb' + j + '"></div></div></div><div id="ch' + j + '"></div>' +
+             '<div class="truth ' + c.v + '" id="tr' + j + '">' + (c.v === 'ok' ? '&#10003; ' : c.v === 'half' ? '&#9888; ' : '&#10007; ') + c.why + '</div></div>';
+    }).join('');
+    $('verdict').innerHTML = '';
+    $('runBtn').classList.remove('hidden'); $('truthBtn').classList.add('hidden'); $('nextTest').classList.add('hidden');
+  }
+  $('runBtn').onclick = function () {
+    var T = TESTS[test], sc = corder.map(function (k) { return score(T.c[k].f); });
+    var mn = Math.min.apply(null, sc), mx = Math.max.apply(null, sc), best = sc.indexOf(mx);
+    sc.forEach(function (s, j) {
+      $('sb' + j).style.width = (mx === mn ? 50 : 8 + 92 * (s - mn) / (mx - mn)) + '%';
+      $('ch' + j).innerHTML = chips(T.c[corder[j]].f);
+    });
+    setTimeout(function () {
+      $('cand' + best).classList.add('win');
+      var close = (mx - sc.slice().sort(function (a, b) { return b - a; })[1]) < 0.4;
+      $('verdict').innerHTML = 'Your tutor chose this answer because it best matches what you rewarded (the tags show what counted for and against each one). <b>It did not read it for meaning.</b>' +
+        (close ? ' <span style="color:var(--gray)">It was a close call: your training sent mixed signals, so the top two answers scored almost the same.</span>' : '') +
+        because(T.c[corder[best]].f);
+      $('runBtn').classList.add('hidden'); $('truthBtn').classList.remove('hidden');
+    }, 850);
+    lastBest = corder[best];
+  };
+  var lastBest = -1;
+  $('truthBtn').onclick = function () {
+    for (var j = 0; j < 4; j++) $('tr' + j).classList.add('show');
+    var v = TESTS[test].c[lastBest].v;
+    $('verdict').innerHTML = v === 'ok'
+      ? 'This time your tutor happened to pick an accurate answer. But notice: <b>it had no way of knowing that.</b> Accuracy was never part of its training.'
+      : v === 'half'
+        ? 'Your tutor picked an answer that is only <b>half right</b>, and it would give it to every learner who asks. It cannot tell, because nothing it learned was about truth.'
+        : 'Your tutor picked an answer that is <b>not accurate</b>, and it would give it to every learner who asks. It cannot tell, because nothing it learned was about truth.';
+    $('truthBtn').classList.add('hidden');
+    $('nextTest').textContent = test < TESTS.length - 1 ? 'Next question →' : 'Finish';
+    $('nextTest').classList.remove('hidden');
+  };
+  $('nextTest').onclick = function () {
+    test++;
+    if (test < TESTS.length) showTest();
+    else {
+      $('yours').innerHTML = '<b>Your tutor&rsquo;s profile:</b> ' + profileText();
+      $('nextTest').classList.add('hidden');
+      $('toP3').classList.remove('hidden');
+    }
+  };
+  $('againBtn').onclick = function () { start(); visited = {}; go(1); };
+
+  // ---------- Pages ----------
+  var visited = {};
+  function go(n) {
+    for (var i = 0; i <= 3; i++) $('page' + i).classList.toggle('active', i === n);
+    $('steps').classList.toggle('hidden', n === 0);
+    visited[n] = true;
+    Array.prototype.forEach.call($('steps').querySelectorAll('button'), function (b) {
+      var k = +b.dataset.p;
+      b.className = (k === n ? 'current' : visited[k] ? 'visited' : '');
+    });
+    window.scrollTo(0, 0);
+  }
+  $('steps').onclick = function (e) { var b = e.target.closest('button'); if (b && visited[+b.dataset.p]) go(+b.dataset.p); };
+  $('startBtn').onclick = function () { go(1); };
+  $('toP2').onclick = function () { go(2); };
+  $('toP3').onclick = function () { go(3); };
+
+  start();
+})();
+</script>
+</body>
+</html>
